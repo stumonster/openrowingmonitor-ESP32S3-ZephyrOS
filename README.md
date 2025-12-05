@@ -100,7 +100,7 @@ This project is heavily based on [Open Rowing Monitor](https://github.com/labern
 
 * Web Interface Design: Laberning
 
-* Zephyr Port & ESP32 Implementation: [Your Name]
+* Zephyr Port & ESP32 Implementation: Jannuel Lauro T. Dizon
 
 ## 📄 License
 This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
