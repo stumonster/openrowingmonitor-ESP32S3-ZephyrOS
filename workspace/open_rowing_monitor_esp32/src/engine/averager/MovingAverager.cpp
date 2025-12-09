@@ -1,34 +1,37 @@
 #include "MovingAverager.h"
 
 // Constructor
-MovingAverager::MovingAverager(int len, std::vector<double> initValue) {
-    this->length = len;
-    this->dataPoints = initValue;
+MovingAverager::MovingAverager(int len, double initValue) {
+    if(len > MAX_AVERAGE_SIZE)
+    {
+        len = MAX_AVERAGE_SIZE;
+    }
+    this->capacity = len;
+    this->reset(initValue);
 }
 
 void MovingAverager::pushValue(double dataPoint) {
-    // JS logic: Moves all elements to the right, inserts new one at [0]
-    // In C++, inserting at [0] of a vector is slow (O(N)).
-    // Since this array is small (usually length < 10), it's fine to just loop.
-
     for (int i = length - 1; i > 0; i--) {
-        dataPoints[i] = dataPoints[i - 1];
+        this->dataPoints[i] = this->dataPoints[i - 1];
     }
-    dataPoints[0] = dataPoint;
+    this->dataPoints[0] = dataPoint;
+
 }
 
 double MovingAverager::getAverage() {
     double sum = 0.0;
-    for (double val : dataPoints) {
+    for (double val : this->dataPoints) {
         sum += val;
     }
-    return sum / length;
+    return sum / this->capacity;
 }
 
 void MovingAverager::replaceLastPushedValue(double dataPoint) {
-    dataPoints[0] = dataPoint;
+    this->dataPoints[0] = dataPoint;
 }
 
 void MovingAverager::reset(double initValue) {
-    dataPoints.assign(length, initValue);
+    for (int i = 0; i < capacity; i++) {
+        this->dataPoints[i] = initValue;
+    }
 }
