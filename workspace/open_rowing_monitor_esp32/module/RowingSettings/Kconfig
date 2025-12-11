@@ -1,125 +1,140 @@
 menu "Rowing Engine Physics"
 
-config OPENROWING_IMPULSES_PER_REV
+config ORM_IMPULSES_PER_REV
     int "Impulses per Revolution"
     default 1
     help
-        Number of magnets on the flywheel.
+        The number of magnets on the flywheel.
+        Most standard DIY builds use 1.
 
-config MIN_TIME_BETWEEN_IMPULSE_X10000
-    int "Time duration between impulses (scaled x10000)"
+config ORM_MIN_TIME_BETWEEN_IMPULSE_X10000
+    int "Min Time Between Impulses (x10000)"
     default 140
     help
-        Minimum time duration between impulses.
+        The shortest physically possible time between magnets in seconds (scaled x10000).
+        Used to filter out sensor bounce (noise).
+        Example: 140 = 0.014 seconds.
 
-config MAX_TIME_BETWEEN_IMPULSE_X10000
-    int "Time duration between impulses (scaled x10000)"
-    default 3500
-    help
-        Maximun time duration between impulses.
-
-config MAXIMUM_DOWNWARD_CHANGE_X10000
-    int "Percentage change between successive intervals before measurements are considered invalid (scaled x10000)"
-    default 2500
-    help
-        Effectively the maximum acceleration.
-
-config MAXIMUM_UPWARD_CHANGE_X10000
-    int "Percentage change between successive intervals before measurements are considered invalid (scaled x10000)"
-    default 17500
-    help
-        Effectively the maximum deceleration.
-
-config MAX_TIME_BETWEEN_IMPULSE_X10000
-    int "Time duration between impulses (scaled x10000)"
+config ORM_MAX_TIME_BETWEEN_IMPULSE_X10000
+    int "Max Time Between Impulses (x10000)"
     default 35000
     help
-        3.5 seconds. If pulses are slower than this, we assume the rower stopped.
+        The longest valid time between magnets in seconds (scaled x10000).
+        If a pulse takes longer than this, it is treated as a pause/stop.
+        Example: 35000 = 3.5 seconds.
+        Note: Must be longer than your slowest recovery stroke.
 
-config SMOOTHING
-    int "Smoothing (Array Length)"
+config ORM_MAXIMUM_DOWNWARD_CHANGE_X10000
+    int "Max Acceleration Change % (x10000)"
+    default 2500
+    help
+        Maximum allowed acceleration between two magnet pulses (scaled x10000).
+        Example: 2500 = 25% change allowed.
+        If speed increases faster than this, it is ignored as noise.
+
+config ORM_MAXIMUM_UPWARD_CHANGE_X10000
+    int "Max Deceleration Change % (x10000)"
+    default 17500
+    help
+        Maximum allowed deceleration between two magnet pulses (scaled x10000).
+        Example: 17500 = 175% change allowed.
+        If speed drops faster than this (e.g., hitting a wall), it is ignored as noise.
+
+config ORM_SMOOTHING
+    int "Smoothing Buffer Size"
+    default 4
+    range 1 20
+    help
+        Number of samples used for the moving average noise filter.
+        Higher = smoother data but more lag.
+        Lower = responsive but jerky.
+        Typical range: 3-6.
+
+config ORM_FLANK_LENGTH
+    int "Flank Detection Length"
     default 4
     help
-        Size of the moving average buffer (Integer, NOT scaled). typically 3-6.
+        Number of consecutive increasing/decreasing measurements required to confirm
+        a phase change (Drive <-> Recovery).
+        Increase this if you see "ghost strokes" during recovery.
 
-config FLANK_LENGTH
-    int "Flank Length"
-    default 4
-    help
-        Number of consecutive measurements to confirm a drive/recovery phase.
-
-config NUM_OF_ERRORS_ALLOWED
-    int ""
+config ORM_NUM_OF_ERRORS_ALLOWED
+    int "Allowed Detection Errors"
     default 0
     help
-        Allows for a more noisy approach, but shouldn't be needed
+        How many "wrong direction" samples are allowed within a flank before
+        resetting detection. Keep at 0 unless sensor is very noisy.
 
-    #//naturalDeceleration: 0,
-    #// Error reducing settings for the rowing phase detection (in seconds)
-    #maximumImpulseTimeBeforePause: 3.0, // maximum time between impulses before the rowing engine considers it a pause
-    #minimumDriveTime: 0.300, // minimum time of the drive phase
-    #minimumRecoveryTime: 1.200, // minimum time of the recovery phase
-    #
-    #// Needed to determine the drag factor of the rowing machine. This value can be measured in the recovery phase
-    #// of the stroke.
-    #// To display it for your rowing machine, set the logging level of the RowingEngine to 'info'. Then start rowing and
-    #// you will see the measured values in the log.
-    #// Just as a frame of reference: the Concept2 can display this factor from the menu, where it is multiplied with 1.000.000
-    #// For a new Concept2 the Drag Factor ranges between 80 (Damper setting 1) and 220 (Damper setting 10). Other rowers are
-    #// in the range of 150 to 450 (NordicTrack).
-    #// Open Rowing Monitor can also automatically adjust this value based on the measured damping. To do so, set the setting
-    #// autoAdjustDragFactor to true (see below).
-    #dragFactor: 1500,
-    #
-    #// Set this to true, if you want to automatically update the drag factor based on the measured
-    #// values in the stroke recovery phase. If your rower produces stable damping values, then this could be a good
-    #// option to dynamically adjust your measurements to the damper setting of your rower.
-    #// When your machine's power and speed readings are too volatile it is wise to turn it off
-    #autoAdjustDragFactor: false,
-    #
-    #// The moment of inertia of the flywheel kg*m^2, which is ONLY relevant when autoAdjustDragFactor is set to true or when you
-    #// use Force Curves. Otherwise this value isn't relevant to your rower
-    #// A way to measure it is outlined here: https://dvernooy.github.io/projects/ergware/, "Flywheel moment of inertia"
-    #// You could also roughly estimate it by just doing some strokes and the comparing the calculated power values for
-    #// plausibility. Note that the power also depends on the drag factor (see above).
-    #flywheelInertia: 0.5,
-    #
-    #// If autoAdjustDragFactor is set to true, it will calculate the drag each recovery phase and update it accordingly to calculate speed,
-    #// distance, etc.. As this calculation that is prone to noise in the measuremnts, it is wise to apply smoothing to prevent this noise
-    #// from throwing off your key metrics. The default value is a running average of the drag factor of 5 strokes
-    #dampingConstantSmoothing: 5,
-    #
-    #// Another setting for when autoAdjustDragFactor is set to true: the maximum allowed change from the current value. Spikes usually imply
-    #// measurement errors, so this setting determines the maximum change with respect to the current dragfactor. Please note that this filter
-    #// will prevent large changes, but will still move the dragfactor upward/downward to prevent it from being stuck. The value is in maximum
-    #// allowed change. The default value of 0.10 implies that the maximum upward/downward change is an increase of the drag with 10%.
-    #dampingConstantMaxChange: 0.10,
-    #
-    #// A constant that is commonly used to convert flywheel revolutions to a rowed distance
-    #// see here: http://eodg.atm.ox.ac.uk/user/dudhia/rowing/physics/ergometer.html#section9
-    #// Concept2 seems to use 2.8, which they admit is an arbitrary number which came close
-    #// to their expectations. So for your rower, you have to find a plausible distance for your effort.
-    #// Also note that the rowed distance also depends on flywheelInertia, so please calibrate that before changing this constant.
-    #// PLEASE NOTE: Increasing this number decreases your rowed meters
-    #magicConstant: 2.8
-
-config OPENROWING_FLYWHEEL_INERTIA_X10000
-    int "Flywheel Inertia (scaled x10000)"
-    default 600
+config ORM_NATURAL_DECELARATION_X10000
+    int "Natural Deceleration (x10000)"
+    default 0
     help
-      The inertia of the flywheel. Value is divided by 10000 in code.
-      Default 600 represents 0.06 kg*m^2.
+        Expected deceleration of the flywheel when no force is applied (scaled x10000).
+        Set to 0 to disable and rely solely on time comparisons.
 
-config OPENROWING_MINIMUM_DRIVE_TIME_MS
-    int "Minimum Drive Time (ms)"
-    default 400
+config ORM_MAX_IMPULSE_TIME_BEFORE_PAUSE_X10000
+    int "Pause Detection Time (x10000)"
+    default 30000
     help
-      Shortest valid drive phase in milliseconds.
+        Time in seconds (scaled x10000) after which the workout is considered Paused.
+        Example: 30000 = 3.0 seconds.
 
-config OPENROWING_AUTO_DRAG_FACTOR
-    bool "Enable Auto Drag Factor Adjustment"
+config ORM_MIN_DRIVE_TIME_X10000
+    int "Min Drive Duration (x10000)"
+    default 3000
+    help
+        Minimum valid length of a drive phase in seconds (scaled x10000).
+        Strokes shorter than this are ignored.
+        Example: 3000 = 0.3 seconds.
+
+config ORM_MIN_RECOVERY_TIME_X10000
+    int "Min Recovery Duration (x10000)"
+    default 12000
+    help
+        Minimum valid length of a recovery phase in seconds (scaled x10000).
+        Example: 12000 = 1.2 seconds.
+
+config ORM_FLYWHEEL_INERTIA_X10000
+    int "Flywheel Inertia (x10000)"
+    default 5000
+    help
+        Moment of Inertia in kg*m^2 (scaled x10000).
+        CRITICAL for accurate Watt/Power calculations.
+        Example: 5000 = 0.5 kg*m^2.
+        (Note: Air rowers are usually ~600 (0.06), Magnetic rowers are higher).
+
+config ORM_AUTO_ADJUST_DRAG_FACTOR
+    bool "Enable Auto Drag Factor"
     default y
     help
-      If enabled, the engine calculates drag based on deceleration.
+        If enabled, the engine calculates drag dynamically based on deceleration.
+        Highly recommended for magnetic/air rowers.
+
+# Everything inside this 'if' block disappears if Auto Adjust is OFF
+if ORM_AUTO_ADJUST_DRAG_FACTOR
+
+config ORM_DAMPING_CONSTANT_SMOOTING
+    int "Drag Factor Smoothing"
+    default 5
+    help
+        Number of strokes to average the calculated drag factor over.
+        Prevents Watts from jumping wildly between strokes.
+
+config ORM_DAMPING_CONSTANT_MAX_CHANGE_X10000
+    int "Max Drag Factor Change (x10000)"
+    default 1000
+    help
+        Maximum allowed change in drag factor per update (scaled x10000).
+        Example: 1000 = 10% change.
+
+endif # ORM_AUTO_ADJUST_DRAG_FACTOR
+
+config ORM_DRAG_FACTOR
+    int "Initial/Static Drag Factor (x10000)"
+    default 1500
+    help
+        The Drag Coefficient (scaled x10000).
+        If Auto Adjust is ON: This is the starting value before the first stroke.
+        If Auto Adjust is OFF: This value is used constantly.
 
 endmenu

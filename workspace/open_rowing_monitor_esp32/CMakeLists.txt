@@ -1,11 +1,16 @@
 cmake_minimum_required(VERSION 3.22.0)
 
+set(ZEPHYR_EXTRA_MODULES
+    "${CMAKE_SOURCE_DIR}/module/RowingSettings"
+    # Add other modules later
+)
+
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
 project(ESP32_ORM)
 
 target_sources(app PRIVATE
-    src/main.c
+    src/main.cpp
 
     src/engine/RowingEngine.cpp
     src/engine/MovingFlankDetector.cpp
