@@ -2,23 +2,23 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/fs/fs.h>
+#include <zephyr/fs/littlefs.h> // <--- NEW HEADER
+// #include <lfs.h>
 #include <string>
 
 class StorageManager {
 public:
     StorageManager();
-
-    // Mounts the SD card. Returns 0 on success.
     int init();
-
-    // Appends a line of text to "workout.csv"
-    // Returns true if successful.
     bool appendRecord(const std::string& data);
+    void listMountedVol();
 
 private:
-    // Zephyr FS structures
+    // LittleFS specific structures
     struct fs_mount_t mp;
-    static const char* disk_mount_pt;
+    struct fs_littlefs lfs_data; // <--- Configuration for LittleFS
+
+    static const char* mount_pt;
     static const char* log_file_path;
 
     bool isMounted = false;

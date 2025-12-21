@@ -1,13 +1,9 @@
-/* 1. Includes for Macros (GPIO_ACTIVE_LOW, SPIM2_MISO_..., etc) */
-#include <zephyr/dt-bindings/pinctrl/esp-pinctrl-common.h>
-#include <dt-bindings/pinctrl/esp32s3-pinctrl.h>
 #include <zephyr/dt-bindings/gpio/gpio.h>
 
 / {
     /* 2. Aliases: Giving C++ friendly names to hardware nodes */
     aliases {
         impulse-sensor = &rower_reed_switch;
-        orm-sdhc = &orm_sdhc0;
     };
 
     /* 3. GPIO Keys: Virtual device for the Sensor */
@@ -22,39 +18,39 @@
     };
 };
 
-/* 4. Pin Controller: Defining the SPI pins */
-&pinctrl {
-    spim2_default: spim2_default {
-        group1 {
-            /* MISO=13, MOSI=11, CLK=12 */
-            pinmux = <SPIM2_MISO_GPIO13>,
-                     <SPIM2_MOSI_GPIO11>,
-                     <SPIM2_SCLK_GPIO12>;
+/* 16MB flash */
+&flash0 {
+    reg = <0x0 DT_SIZE_M(16)>;
+    /delete-node/ partitions;
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        /* 0x00000 - 0x10000: Bootloader (64KB) */
+        boot_partition: partition@0 {
+            label = "mcuboot";
+            reg = <0x00000000 0x00010000>;
+            read-only;
+        };
+
+        /* 0x10000 - 0x210000: Application (2MB) */
+        /* You can make this larger if your code grows */
+        slot0_partition: partition@10000 {
+            label = "image-0";
+            reg = <0x00010000 0x00200000>;
+        };
+
+        /* 0x210000 - End: Storage (~13.8MB) */
+        /* This is where LittleFS will live */
+        storage_partition: partition@210000 {
+            label = "storage";
+            reg = <0x00210000 0x00DE0000>;
         };
     };
 };
 
-/* 5. SPI2 Bus: Enabling the bus and attaching pins */
-&spi2 {
-    status = "okay";
-    pinctrl-0 = <&spim2_default>;
-    pinctrl-names = "default";
-
-    /* Software Chip Select on GPIO 10 */
-    cs-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;
-
-    /* 6. The SD Card Slot Device */
-    orm_sdhc0: sdhc_spi@0 {
-        compatible = "zephyr,sdhc-spi-slot";
-        reg = <0>; /* Chip Select Index 0 */
-        status = "okay";
-        spi-max-frequency = <20000000>; /* 20 MHz */
-
-        /* 7. The Disk Driver */
-        mmc {
-            compatible = "zephyr,sdmmc-disk";
-            status = "okay";
-            disk-name = "SD2";
-        };
-    };
+/* 8MB psram */
+&psram0 {
+	size = <DT_SIZE_M(8)>;
 };

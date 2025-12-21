@@ -1,65 +1,94 @@
 #include "StorageManager.h"
 #include <zephyr/logging/log.h>
-#include <zephyr/drivers/disk.h>
+#include <zephyr/storage/flash_map.h>
 
 LOG_MODULE_REGISTER(StorageManager, LOG_LEVEL_INF);
 
-// NEW (Use a unique name)
-const char* StorageManager::disk_mount_pt = "/SD2:";
-const char* StorageManager::log_file_path = "/SD2:/workout.csv";
+// We need the numeric ID of the partition labeled "storage" in Device Tree
+#define STORAGE_PARTITION_ID FIXED_PARTITION_ID(storage_partition)
+
+const char* StorageManager::mount_pt = "/lfs";
+const char* StorageManager::log_file_path = "/lfs/workout.csv";
 
 StorageManager::StorageManager() {
-    // Initialize the mount point structure
-    mp.type = FS_FATFS;
-    mp.fs_data = NULL;
-    mp.mnt_point = disk_mount_pt;
+    // 1. Configure LittleFS parameters
+    // Zephyr calculates the read/write/erase sizes automatically
+    // from the flash driver if we set these to 0.
+    lfs_data.read_size = 16;
+    lfs_data.prog_size = 16;
+    lfs_data.cache_size = 64;
+    lfs_data.lookahead_size = 32;
+    lfs_data.block_cycles = 512;
+
+    // 2. Setup the Mount Point
+    mp.type = FS_LITTLEFS;
+    mp.fs_data = &lfs_data;
+    mp.mnt_point = mount_pt;
+
+    // 3. Point to the specific Flash Partition
+    mp.storage_dev = (void*)STORAGE_PARTITION_ID;
 }
 
 int StorageManager::init() {
-    LOG_INF("Attempting to mount SD card at %s...", mp.mnt_point);
+    LOG_INF("Mounting LittleFS to %s...", mp.mnt_point);
 
     int res = fs_mount(&mp);
 
-    // Accept 0 (Success) OR -16 (Already Mounted) as success
-    if (res == 0 || res == -16) {
-        LOG_INF("SD Card mounted successfully (res: %d).", res);
-        isMounted = true;
-        return res;
-    } else {
-        LOG_ERR("Error mounting SD Card: %d", res);
-        return res;
+    // 4. Handle First-Boot Scenario (Format required)
+    if (res < 0 && res != -EBUSY) {
+        LOG_WRN("Mount failed (Error %d). Attempting to format...", res);
+
+        // Use the generic FS API to format the area defined in 'mp'
+        res = fs_format(&mp);
+        if (res < 0) {
+            LOG_ERR("Format failed: %d", res);
+            return res;
+        }
+
+        // Try mounting again after format
+        res = fs_mount(&mp);
     }
+
+    if (res == 0 || res == -EBUSY) {
+        LOG_INF("Storage Ready.");
+        isMounted = true;
+        return 0;
+    }
+
+    LOG_ERR("Critical Storage Failure: %d", res);
+    return res;
 }
 
+// appendRecord remains largely the same, just ensure you check isMounted.
 bool StorageManager::appendRecord(const std::string& data) {
     if (!isMounted) return false;
 
     struct fs_file_t file;
     fs_file_t_init(&file);
 
-    // 1. Open (Create if not exists, Append to end)
     int rc = fs_open(&file, log_file_path, FS_O_CREATE | FS_O_APPEND | FS_O_WRITE);
-    if (rc < 0) {
-        LOG_ERR("Failed to open file: %d", rc);
-        return false;
-    }
+    if (rc < 0) return false;
 
-    // 2. Write
-    rc = fs_write(&file, data.c_str(), data.length());
-    if (rc < 0) {
-        LOG_ERR("Failed to write to file: %d", rc);
-        fs_close(&file);
-        return false;
-    }
-
-    // 3. Write Newline
+    fs_write(&file, data.c_str(), data.length());
     fs_write(&file, "\n", 1);
-
-    // 4. Close (This flushes the data to the card)
     fs_close(&file);
 
-    // Optional: Log success (don't do this in production high-speed loops)
-    // LOG_DBG("Wrote %d bytes", data.length());
-
     return true;
+}
+
+void StorageManager::listMountedVolume() {
+    int index = 0;
+    const char *mnt_name;
+    int rc;
+
+    LOG_INF("--- Inspecting Mounted Volumes ---");
+    while (true) {
+        rc = fs_readmount(&index, &mnt_name);
+        if (rc < 0) {
+            // -ENOENT means we reached the end of the list
+            break;
+        }
+        LOG_INF("  [%d] Mounted: %s", index, mnt_name);
+    }
+    LOG_INF("----------------------------------");
 }

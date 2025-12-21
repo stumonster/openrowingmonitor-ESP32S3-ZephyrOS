@@ -70,6 +70,7 @@ int main(void) {
     // 4. Main Loop (Core 0)
     // The physics runs in the background. We can use this thread for
     // simple status monitoring or eventually the Bluetooth implementation.
+    storage.listMountedVol();
     LOG_INF("System Ready! Press the button (GPIO 17) to simulate strokes.");
     while (1) {
         // Fetch data safely using the Mutex-protected getter
@@ -86,6 +87,7 @@ int main(void) {
 
         k_msleep(1000);
 
+        /*
         // Simple test write every second
         if (liveData.state == RowingState::DRIVE) {
              // Basic CSV format: Time, Power, Distance
@@ -93,6 +95,7 @@ int main(void) {
              sprintf(buffer, "%.2f, %.1f, %.1f", liveData.totalTime, liveData.power, liveData.distance);
              storage.appendRecord(std::string(buffer));
         }
+        */
     }
     return 0;
 }
