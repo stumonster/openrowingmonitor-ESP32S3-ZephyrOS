@@ -1,6 +1,6 @@
-#ifndef FIT_PROFILE_H
-#define FIT_PROFILE_H
+#pragma once
 
+#include "fit_product.h"
 #include "fit.h"
 
 #if defined(__cplusplus)

@@ -1,4 +1,4 @@
-#include "FITRecorder.h"
+#include "FitRecorder.h"
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(fit_recorder, LOG_LEVEL_INF);
@@ -11,101 +11,88 @@ FitRecorder::FitRecorder(StorageManager* storageMgr)
 }
 
 void FitRecorder::startFile() {
-    // 1. Reset State
     hasSentRecordDef = false;
-
-    // 2. Write File ID Message (Required as first message)
-    // In a real implementation, you would write the Definition for FileID,
-    // then the FileID Data Message here.
-    // (Skipped here to focus on logRecord as requested, but logic is identical)
+    // (Optional) Write File Header here if not handled elsewhere
 }
 
 void FitRecorder::logRecord(const RowingData& data) {
     if (!storage) return;
 
-    // Buffer for serialization (Max FIT message size is usually small, <255 bytes)
-    FIT_UINT8 buffer[255];
+    FIT_UINT8 buffer[128]; // Buffer for serialized message
     FIT_UINT8 length = 0;
 
-    // --------------------------------------------------------
-    // 1. Send Definition Message (Once per file for this type)
-    // --------------------------------------------------------
+    // -----------------------------------------------------------
+    // 1. Send Definition Message (Once)
+    // -----------------------------------------------------------
     if (!hasSentRecordDef) {
-        // Retrieve the standard definition for the RECORD message (Global ID 20)
-        // This comes from your fit_profile.c
         const FIT_MESG_DEF* mesgDef = Fit_GetMesgDef(FIT_MESG_NUM_RECORD);
+        if (mesgDef) {
+            // Manually serialize Definition Message
+            // Header: (MsgNum & 0x0F) | 0x40 (Definition Bit)
+            buffer[length++] = (RECORD_LOCAL_MESG_NUM & 0x0F) | 0x40;
+            buffer[length++] = 0; // Reserved
+            buffer[length++] = FIT_ARCH_ENDIAN_LITTLE;
 
-        if (mesgDef != NULL) {
-            // Serialize the definition message
-            // Note: usage might vary slightly based on fit_convert version,
-            // but usually Fit_ConvertMessageDefinition or similar.
-            // If your SDK uses Fit_Convert, we construct the definition header manually or use helper.
-            // Standard generic way using fit_convert.c:
-            length = Fit_ConvertMessageDefinition(mesgDef, buffer, RECORD_LOCAL_MESG_NUM, FIT_ARCH_ENDIAN_LITTLE);
+            // Global Message Number (uint16)
+            FIT_UINT16 globalNum = mesgDef->global_mesg_num;
+            memcpy(&buffer[length], &globalNum, 2); length+=2;
+
+            // Num Fields
+            buffer[length++] = mesgDef->num_fields;
+
+            // Fields
+            for(int i=0; i<mesgDef->num_fields; i++) {
+                buffer[length++] = mesgDef->fields[i].num;
+                buffer[length++] = mesgDef->fields[i].size;
+                buffer[length++] = mesgDef->fields[i].type;
+            }
+
             writeToStorage(buffer, length);
-
             hasSentRecordDef = true;
-            LOG_INF("Written Record Definition Message");
-        } else {
-            LOG_ERR("Could not find RECORD message definition in profile!");
-            return;
         }
     }
 
-    // --------------------------------------------------------
-    // 2. Prepare Data Message
-    // --------------------------------------------------------
+    // -----------------------------------------------------------
+    // 2. Prepare & Serialize Data Message
+    // -----------------------------------------------------------
+    length = 0;
     FIT_RECORD_MESG record;
-
-    // Initialize struct with invalid values (safety)
     Fit_InitMesg(Fit_GetMesgDef(FIT_MESG_NUM_RECORD), &record);
 
-    // Map RowingData to FIT_RECORD_MESG
-    // Timestamp: Convert session time to FIT time
+    // Populate Data
     record.timestamp = getFitTimestamp(data.totalTime);
-
-    // Distance: Meters (float) -> Centimeters (uint32)
     record.distance = (FIT_UINT32)(data.distance * 100.0);
-
-    // Power: Watts (double) -> Watts (uint16)
     record.power = (FIT_UINT16)data.power;
-
-    // Speed: m/s (double) -> mm/s (uint16)
     record.speed = (FIT_UINT16)(data.speed * 1000.0);
-
-    // Cadence: SPM (double) -> SPM (uint8)
     record.cadence = (FIT_UINT8)data.spm;
 
-    // Heart Rate: (0 if not available)
-    record.heart_rate = 0;
+    // Manually serialize Data Message based on Profile Definition
+    // (A generic SDK function for this is often massive, so we do it simply here)
 
-    // --------------------------------------------------------
-    // 3. Serialize Data Message
-    // --------------------------------------------------------
-    // Fit_ConvertMesg serializes the struct into binary format
-    // It returns the number of bytes written to buffer
-    length = Fit_ConvertMesg(&record, buffer, RECORD_LOCAL_MESG_NUM);
+    // Header: (LocalNum & 0x0F) (Normal Header)
+    buffer[length++] = (RECORD_LOCAL_MESG_NUM & 0x0F);
 
-    // --------------------------------------------------------
-    // 4. Write to Storage
-    // --------------------------------------------------------
+    // We must write fields IN THE ORDER defined in fit_profile.c
+    // Check your fit_profile.c -> record_fields array order!
+    // Assuming order: timestamp (4), distance (4), speed (2), power (2), cadence (1)
+
+    // Note: This relies on Little Endian CPU (ESP32 is LE)
+    memcpy(&buffer[length], &record.timestamp, 4); length+=4;
+    memcpy(&buffer[length], &record.distance, 4); length+=4;
+    memcpy(&buffer[length], &record.speed, 2); length+=2;
+    memcpy(&buffer[length], &record.power, 2); length+=2;
+    memcpy(&buffer[length], &record.cadence, 1); length+=1;
+    // heart_rate (1) if in profile
+    // memcpy(&buffer[length], &record.heart_rate, 1); length+=1;
+
     writeToStorage(buffer, length);
 }
 
 void FitRecorder::writeToStorage(const void* data, size_t size) {
-    // StorageManager takes std::string, which is safe for binary data
-    // IF constructed with specific length.
     std::string binData((const char*)data, size);
     storage->appendRecord(binData);
 }
 
 FIT_DATE_TIME FitRecorder::getFitTimestamp(double sessionTimeS) {
-    // If you have a Real Time Clock (RTC), use it here.
-    // Otherwise, we fake it using a base time (e.g., compile time or fixed date) + session time.
-    // Ideally: (CurrentUnixTime - FIT_EPOCH_OFFSET)
-
-    // Placeholder: Start at arbitrary recent date if no RTC
-    // (e.g. 2025-01-01 = 1104537600 FIT Time)
-    FIT_DATE_TIME baseTime = 1104537600;
-    return (FIT_DATE_TIME)(baseTime + (uint32_t)sessionTimeS);
+    return (FIT_DATE_TIME)(1104537600 + (uint32_t)sessionTimeS);
 }

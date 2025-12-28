@@ -1,3 +1,0 @@
-name: FITSDK
-build:
-  cmake: .
