@@ -5,6 +5,7 @@
   Main Initialization Component of the Web Component App
 */
 
+// import { LitElement, html } from "lit";
 import {
   LitElement,
   html,
@@ -16,7 +17,7 @@ import "./components/PerformanceDashboard.js";
 export class App extends LitElement {
   static get properties() {
     return {
-      appStat: { state: true },
+      appState: { state: true },
       metrics: { state: true },
     };
   }
