@@ -15,7 +15,7 @@ export class App extends LitElement {
   static get properties() {
     return {
       appStat: { state: true },
-      metrics: (state: true)
+      metrics: { state: true },
     };
   }
 
