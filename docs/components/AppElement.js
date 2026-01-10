@@ -5,7 +5,7 @@
   Base Component for all other App Components
 */
 
-import { LitElement } from "lit";
+import { LitElement, html, css } from "lit";
 import { property } from "lit/decorators.js";
 import { APP_STATE } from "../store/appState.js";
 
