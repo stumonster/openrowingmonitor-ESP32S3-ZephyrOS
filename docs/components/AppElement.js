@@ -5,11 +5,14 @@
   Base Component for all other App Components
 */
 
-import { LitElement } from "lit";
-import { property } from "lit/decorators.js";
+import {
+  LitElement,
+  html,
+  css,
+} from "https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js";
 import { APP_STATE } from "../store/appState.js";
-export * from "lit";
 
+export { html, css }; // Manually export what your other files need
 export class AppElement extends LitElement {
   // this is how we implement a global state: a global state object is passed via properties
   // to child components
