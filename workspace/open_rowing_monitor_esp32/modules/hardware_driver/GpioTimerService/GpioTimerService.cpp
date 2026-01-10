@@ -40,7 +40,7 @@ int GpioTimerService::init() {
     int ret = gpio_pin_configure_dt(&sensorSpec, GPIO_INPUT);
     if (ret < 0) return ret;
 
-    ret = gpio_pin_interrupt_configure_dt(&sensorSpec, GPIO_INT_EDGE_TO_ACTIVE);
+    ret = gpio_pin_interrupt_configure_dt(&sensorSpec, GPIO_INT_DISABLE);
     if (ret < 0) return ret;
 
     gpio_init_callback(&pinCbData, interruptHandlerStatic, BIT(sensorSpec.pin));
@@ -87,4 +87,15 @@ void GpioTimerService::handleInterrupt() {
     double dt = (double)deltaCycles / (double)sys_clock_hw_cycles_per_sec();
 
     k_msgq_put(&impulseQueue, &dt, K_NO_WAIT);
+}
+
+void GpioTimerService::pause() {
+    gpio_pin_interrupt_configure_dt(&sensorSpec, GPIO_INT_DISABLE);
+    LOG_INF("Physics Engine PAUSED (Interrupts disabled)");
+}
+
+void GpioTimerService::resume() {
+    isFirstPulse = true; // Reset state so the first stroke isn't huge
+    gpio_pin_interrupt_configure_dt(&sensorSpec, GPIO_INT_EDGE_TO_ACTIVE);
+    LOG_INF("Physics Engine RESUMED");
 }

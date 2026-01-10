@@ -1,5 +1,7 @@
 #include "FTMS.h"
 
+LOG_MODULE_REGISTER(FTMS, LOG_LEVEL_INF);
+
 // -----------------------------------------------------------------------------
 // 1. Define the GATT Service using Zephyr Macros
 // -----------------------------------------------------------------------------
@@ -20,7 +22,7 @@ static volatile bool notify_enabled = false;
 static void rower_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
 	notify_enabled = (value == BT_GATT_CCC_NOTIFY);
-    printk("FTMS Notifications %s\n", notify_enabled ? "ENABLED" : "DISABLED");
+    LOG_INF("FTMS Notifications %s\n", notify_enabled ? "ENABLED" : "DISABLED");
 }
 
 // Define the Service Layout
@@ -48,16 +50,18 @@ BT_GATT_SERVICE_DEFINE(ftms_svc,
 void FTMS::init() {
     // Zephyr handles GATT initialization automatically via the macro.
     // This function is here if you need to set initial values or debug logs.
-    printk("FTMS Service Initialized\n");
+    LOG_INF("FTMS Service Initialized\n");
 }
 
 bool FTMS::isNotifyEnabled() {
     return notify_enabled;
 }
 
-void FTMS::notifyRowingData(const RowingData& data) {
-    if (!notify_enabled) return;
-
+void FTMS::notifyRowingData(struct bt_conn *conn, const RowingData& data) {
+    if (conn == nullptr || !notify_enabled) {
+        // bt_conn_unref(conn);
+        return;
+    }
     /* FLAG MAPPING (UINT16):
        Bit 0: 0 (Stroke Rate/Count Present)
        Bit 1: 1 (Avg Stroke Rate Present)
@@ -101,7 +105,7 @@ void FTMS::notifyRowingData(const RowingData& data) {
 
     // [5] Instantaneous Pace (UINT16 - Seconds per 500m)
     // Present because Bit 3 is 1
-    uint32_t rawPace = (uint32_t)(500.0 / data.speed);
+    uint32_t rawPace = (uint32_t)(500.0 / data.instSpeed);
     uint16_t instPace = (rawPace > 65535) ? 65535 : (uint16_t)rawPace;
     sys_put_le16(instPace, &buffer[cursor]);
     cursor += 2;
@@ -114,7 +118,7 @@ void FTMS::notifyRowingData(const RowingData& data) {
 
     // [7] Instantaneous Power (SINT16 - Watts)
     // Present because Bit 5 is 1
-    sys_put_le16((int16_t)data.power, &buffer[cursor]);
+    sys_put_le16((int16_t)data.instPower, &buffer[cursor]);
     cursor += 2;
 
     // [8] Average Power (SINT16 - Watts)
@@ -124,12 +128,14 @@ void FTMS::notifyRowingData(const RowingData& data) {
 
     // [9] Elapsed Time (UINT16 - Seconds)
     // Present because Bit 11 is 1
-    sys_put_le16((uint16_t)data.totalTime, &buffer[cursor]);
+    uint16_t elapsedTime = (uint16_t)(data.totalTime - data.sessionStartTime);
+    sys_put_le16(elapsedTime, &buffer[cursor]);
     cursor += 2;
 
     // Total buffer size used will be 18 bytes
-    bt_gatt_notify(NULL, &ftms_svc.attrs[2], buffer, cursor);
-}
-
-
+    int err = bt_gatt_notify(conn, &ftms_svc.attrs[2], buffer, cursor);
+    if (err) {
+        // LOG_WRN("Notify failed (err %d)", err);
+        LOG_DBG("Notify skipped: connection closing (err %d)", err);
+    }
 }

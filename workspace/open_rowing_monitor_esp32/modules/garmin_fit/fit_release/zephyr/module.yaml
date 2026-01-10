@@ -1,3 +1,0 @@
-name: fit_release
-build:
-    cmake: .

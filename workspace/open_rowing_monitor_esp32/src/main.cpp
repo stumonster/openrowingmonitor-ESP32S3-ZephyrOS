@@ -1,78 +1,68 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-// Include your module headers
+// Module Headers
 #include "RowingSettings.h"
 #include "RowingEngine.h"
 #include "GpioTimerService.h"
 #include "BleManager.h"
-#include "FTMS.h" // NOTE: See "Crucial Fix" below
+#include "FTMS.h"
 #include "RowerBridge.h"
 
-// Register the main module for logging
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 int main(void)
 {
-    LOG_INF("Starting Open Rowing Monitor ...");
+    LOG_INF("Starting Open Rowing Monitor (ESP32S3)...");
 
-    // --------------------------------------------------------------------------
-    // 1. Initialize Settings & Physics Engine
-    // --------------------------------------------------------------------------
-    // This loads defaults from Kconfig (RowingSettings.h)
+    // 1. Settings & Engine
     RowingSettings settings;
-
-    // Instantiate the Physics Engine with those settings
     RowingEngine engine(settings);
 
-    // --------------------------------------------------------------------------
-    // 2. Initialize Hardware (GPIO / Timers)
-    // --------------------------------------------------------------------------
-    // Inject the engine into the GPIO service so it knows where to send interrupts
+    // 2. Hardware Timer Service
+    // This constructor starts the physics thread, and .init() sets up the ISR
     GpioTimerService gpioService(engine);
-
     if (gpioService.init() != 0) {
-        LOG_ERR("Failed to initialize GPIO Service! System halted.");
+        LOG_ERR("Failed to initialize GPIO. Check Devicetree alias 'impulse_sensor'");
         return -1;
     }
 
-    // --------------------------------------------------------------------------
-    // 3. Initialize BLE Services (GATT)
-    // --------------------------------------------------------------------------
-    // Instantiate the FTMS Service.
-    // (Note: The GATT service definitions in FTMS.cpp register themselves automatically
-    // with Zephyr at boot, but we need this object to update the values later).
+    // 3. BLE Services & Manager
     FTMS ftmsService;
     ftmsService.init();
 
-    // --------------------------------------------------------------------------
-    // 4. Initialize BLE Manager (Gap / Advertising)
-    // --------------------------------------------------------------------------
-    // Starts the Bluetooth stack and begins advertising the FTMS UUID
     BleManager bleManager;
-    bleManager.init();
+    bleManager.init(); // Starts advertising FTMS UUID
 
-    // --------------------------------------------------------------------------
-    // 5. Initialize the Bridge
-    // --------------------------------------------------------------------------
-    // The bridge connects the Physics Engine to the FTMS Service
-    RowerBridge bridge(engine, ftmsService);
+    // 4. The Bridge
+    // Connects the engine data to the BLE service
+    RowerBridge bridge(engine, ftmsService, bleManager);
 
-    LOG_INF("System Initialization Complete. Entering Main Loop.");
+    LOG_INF("All systems go. Ready to row.");
 
-    // --------------------------------------------------------------------------
-    // 6. Main Loop
-    // --------------------------------------------------------------------------
+    // 6. Main Loop (Application Thread)
+    bool wasConnected = false;
+
     while (1) {
-        // Poll the engine and update BLE if necessary.
-        // The bridge handles its own rate limiting (2Hz), so we can call this frequently.
-        bridge.update();
+        bool isConnected = bleManager.isConnected();
 
-        // Sleep to yield the processor to other threads (like the BLE stack
-        // or the GPIO physics thread).
-        // 10ms = 100Hz loop rate, which is plenty for checking UI/BLE updates.
-        k_msleep(10);
+        // Handle State Transitions for Physics Engine
+        if (isConnected && !wasConnected) {
+            gpioService.resume();
+            engine.startSession();
+            wasConnected = true;
+        } else if (!isConnected && wasConnected) {
+            gpioService.pause();
+            engine.endSession();
+            wasConnected = false;
+        }
+
+        // Only update the bridge/send BLE data if connected
+        if (isConnected) {
+            bridge.update();
+        }
+
+        k_msleep(500); // Poll at 2Hz
     }
-
     return 0;
-}
+};

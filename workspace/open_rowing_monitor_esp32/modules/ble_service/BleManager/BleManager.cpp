@@ -3,6 +3,8 @@
 
 struct bt_conn *BleManager::current_conn = nullptr;
 
+LOG_MODULE_REGISTER(BleManager, LOG_LEVEL_INF);
+K_MUTEX_DEFINE(BleManager::conn_mutex);
 // GAP Connection Callbacks
 BT_CONN_CB_DEFINE(conn_callbacks) = {
     .connected = BleManager::onConnected,
@@ -28,20 +30,21 @@ static const struct bt_data sd[] = {
 void BleManager::init() {
     int err = bt_enable(NULL);
     if (err) {
-        printk("Bluetooth init failed (err %d)\n", err);
+        LOG_ERR("Bluetooth init failed (err %d)\n", err);// change to LOG_ERR
         return;
     }
-    printk("Bluetooth initialized\n");
+    LOG_INF("Bluetooth initialized\n");
     startAdvertising();
 }
 
 void BleManager::startAdvertising() {
-    int err = bt_le_adv_start(BT_LE_ADV_CONN_NAME, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+    // int err = bt_le_adv_start(BT_LE_ADV_CONN_NAME, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+    int err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
     if (err) {
-        printk("Advertising failed to start (err %d)\n", err);
+        LOG_ERR("Advertising failed to start (err %d)\n", err);
         return;
     }
-    printk("Advertising successfully started\n");
+    LOG_INF("Advertising successfully started\n");
 }
 
 bool BleManager::isConnected() {
@@ -50,17 +53,40 @@ bool BleManager::isConnected() {
 
 void BleManager::onConnected(struct bt_conn *conn, uint8_t err) {
     if (err) {
-        printk("Connection failed (err 0x%02x)\n", err);
+        LOG_ERR("Connection failed (err 0x%02x)\n", err);
     } else {
-        printk("Connected\n");
+        k_mutex_lock(&conn_mutex, K_FOREVER); // PROTECT THIS
+        if (current_conn) {
+            bt_conn_unref(current_conn); // Clean up if something was there
+        }
         current_conn = bt_conn_ref(conn);
+        k_mutex_unlock(&conn_mutex);
+        LOG_INF("Connected");
     }
 }
 
 void BleManager::onDisconnected(struct bt_conn *conn, uint8_t reason) {
-    printk("Disconnected (reason 0x%02x)\n", reason);
-    if (current_conn) {
+    LOG_INF("Disconnected (reason 0x%02x)", reason);
+
+    k_mutex_lock(&conn_mutex, K_FOREVER);
+    // ONLY unref if this is the connection we are actually tracking
+    if (current_conn == conn) {
         bt_conn_unref(current_conn);
         current_conn = nullptr;
     }
+    k_mutex_unlock(&conn_mutex);
+    startAdvertising();
+}
+struct bt_conn* BleManager::get_connection_ref() {
+    struct bt_conn *ref = nullptr;
+
+    // Wait for the lock
+    k_mutex_lock(&conn_mutex, K_FOREVER);
+
+    if (current_conn) {
+        ref = bt_conn_ref(current_conn);
+    }
+
+    k_mutex_unlock(&conn_mutex);
+    return ref;
 }

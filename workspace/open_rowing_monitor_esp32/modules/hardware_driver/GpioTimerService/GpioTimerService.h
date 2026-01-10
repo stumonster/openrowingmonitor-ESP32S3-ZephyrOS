@@ -10,6 +10,9 @@ class GpioTimerService {
 public:
     explicit GpioTimerService(RowingEngine& engine);
     int init();
+    void handleInterrupt();
+    void pause();
+    void resume();
 
 private:
     RowingEngine& engine;
@@ -37,5 +40,4 @@ private:
     static void physicsThreadEntryPoint(void* p1, void* p2, void* p3);
     static void interruptHandlerStatic(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 
-    void handleInterrupt();
 };

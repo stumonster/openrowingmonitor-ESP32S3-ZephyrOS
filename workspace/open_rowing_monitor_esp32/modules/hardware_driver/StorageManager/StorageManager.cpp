@@ -104,7 +104,6 @@ void StorageManager::dumpFile(const std::string& filename) {
     char buffer[128];
     // fs_gets reads until \n or buffer size limit
     while (fs_read(&file, buffer, sizeof(buffer))) {
-        // Use printk for raw output to avoid double newlines from LOG_INF
         LOG_INF("%s", buffer);
     }
 

@@ -12,6 +12,7 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/logging/log.h>
 
 #include "RowingData.h"
 
@@ -35,7 +36,7 @@ public:
      * @brief Sends a notification with the latest rowing data
      * @param data The struct from your RowingEngine
      */
-    void notifyRowingData(const RowingData& data);
+    void notifyRowingData(struct bt_conn *conn, const RowingData& data);
 
 private:
     // Helper to check if a client has subscribed to notifications

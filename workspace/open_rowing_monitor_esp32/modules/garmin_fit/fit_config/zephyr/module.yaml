@@ -1,3 +1,0 @@
-name: fit_config
-build:
-    cmake: .

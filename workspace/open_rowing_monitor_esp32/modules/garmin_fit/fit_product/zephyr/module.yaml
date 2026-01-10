@@ -1,3 +1,0 @@
-name: fit_product
-build:
-    cmake: .

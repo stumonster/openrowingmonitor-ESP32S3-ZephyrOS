@@ -24,8 +24,6 @@ private:
     mutable k_mutex dataLock; // Mutable allows locking even in 'const' functions
     RowingData currentData;
 
-    RowingEngineObserver* observer = nullptr;
-
     // Internal State
     double angularDisplacementPerImpulse;
     double drivePhaseStartTime = 0;
@@ -43,12 +41,13 @@ private:
     void updateDrivePhase(double dt);
     void startRecoveryPhase(double dt);
     void updateRecoveryPhase(double dt);
-
+    void resetSessionInternal();
 public:
     explicit RowingEngine(RowingSettings settings);
+    void startSession();
+    void endSession();
 
     void handleRotationImpulse(double dt);
-    void setObserver(RowingEngineObserver* obs);
     void reset();
 
     // Thread-Safe Accessor
