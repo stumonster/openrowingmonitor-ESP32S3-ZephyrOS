@@ -5,7 +5,6 @@
   Main Initialization Component of the Web Component App
 */
 
-// import { LitElement, html } from "lit";
 import {
   LitElement,
   html,
