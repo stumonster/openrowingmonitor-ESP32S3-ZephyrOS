@@ -13,7 +13,7 @@ public:
      * @brief Call this in your main loop to handle data updates
      */
     void update();
-
+    // static void sendToClient(struct bt_conn *conn, void *ptr);
 private:
     RowingEngine& m_engine;
     FTMS& m_service;

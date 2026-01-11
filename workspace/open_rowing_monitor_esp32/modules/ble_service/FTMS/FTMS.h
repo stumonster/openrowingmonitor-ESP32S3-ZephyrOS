@@ -37,10 +37,6 @@ public:
      * @param data The struct from your RowingEngine
      */
     void notifyRowingData(struct bt_conn *conn, const RowingData& data);
-
-private:
-    // Helper to check if a client has subscribed to notifications
-    bool isNotifyEnabled();
 };
 
 #endif // FTMS_H

@@ -18,11 +18,10 @@ static ssize_t read_feature(struct bt_conn *conn, const struct bt_gatt_attr *att
 }
 
 // Configuration Change Callback (CCCD) - Tracks if client subscribed to notifications
-static volatile bool notify_enabled = false;
 static void rower_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
-	notify_enabled = (value == BT_GATT_CCC_NOTIFY);
-    LOG_INF("FTMS Notifications %s\n", notify_enabled ? "ENABLED" : "DISABLED");
+	bool enabled = (value == BT_GATT_CCC_NOTIFY);
+    LOG_INF("A client changed FTMS Notifications to: %s\n", enabled ? "ENABLED" : "DISABLED");
 }
 
 // Define the Service Layout
@@ -53,14 +52,13 @@ void FTMS::init() {
     LOG_INF("FTMS Service Initialized\n");
 }
 
-bool FTMS::isNotifyEnabled() {
-    return notify_enabled;
-}
-
 void FTMS::notifyRowingData(struct bt_conn *conn, const RowingData& data) {
-    if (conn == nullptr || !notify_enabled) {
-        // bt_conn_unref(conn);
+    if (conn == nullptr) {
+        // Safety net to make sure not nullptr goes through
         return;
+    }
+    if (!bt_gatt_is_subscribed(conn, &ftms_svc.attrs[2], BT_GATT_CCC_NOTIFY)) {
+        return; // Silently skip if this specific client isn't ready
     }
     /* FLAG MAPPING (UINT16):
        Bit 0: 0 (Stroke Rate/Count Present)
@@ -136,6 +134,6 @@ void FTMS::notifyRowingData(struct bt_conn *conn, const RowingData& data) {
     int err = bt_gatt_notify(conn, &ftms_svc.attrs[2], buffer, cursor);
     if (err) {
         // LOG_WRN("Notify failed (err %d)", err);
-        LOG_DBG("Notify skipped: connection closing (err %d)", err);
+        LOG_DBG("Notify failed for a client (err %d)", err);
     }
 }

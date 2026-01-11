@@ -1,7 +1,8 @@
 #include "BleManager.h"
 #include "FTMS.h" // To get UUID definitions
 
-struct bt_conn *BleManager::current_conn = nullptr;
+struct bt_conn *BleManager::current_conns[CONFIG_BT_MAX_CONN] = {nullptr}; // Initialize array
+int BleManager::active_connections = 0;
 
 LOG_MODULE_REGISTER(BleManager, LOG_LEVEL_INF);
 K_MUTEX_DEFINE(BleManager::conn_mutex);
@@ -34,34 +35,42 @@ void BleManager::init() {
         return;
     }
     LOG_INF("Bluetooth initialized\n");
+    active_connections = 0;
     startAdvertising();
 }
 
 void BleManager::startAdvertising() {
     // int err = bt_le_adv_start(BT_LE_ADV_CONN_NAME, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
     int err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-    if (err) {
-        LOG_ERR("Advertising failed to start (err %d)\n", err);
+    if (err >= 0 || err == -120) {
+        LOG_INF("Advertising successfully started\n");
         return;
     }
-    LOG_INF("Advertising successfully started\n");
+    LOG_ERR("Advertising failed to start (err %d)\n", err);
 }
 
 bool BleManager::isConnected() {
-    return (current_conn != nullptr);
+    return (active_connections > 0);
 }
 
 void BleManager::onConnected(struct bt_conn *conn, uint8_t err) {
     if (err) {
         LOG_ERR("Connection failed (err 0x%02x)\n", err);
     } else {
-        k_mutex_lock(&conn_mutex, K_FOREVER); // PROTECT THIS
-        if (current_conn) {
-            bt_conn_unref(current_conn); // Clean up if something was there
-        }
-        current_conn = bt_conn_ref(conn);
-        k_mutex_unlock(&conn_mutex);
         LOG_INF("Connected");
+        k_mutex_lock(&conn_mutex, K_FOREVER); // PROTECT THIS
+        for (int i = 0; i < CONFIG_BT_MAX_CONN; i++) {
+            if (current_conns[i] == nullptr) {
+                current_conns[i] = bt_conn_ref(conn);
+                active_connections++;
+                LOG_INF("Connected (Slot %d, Total %d)", i, active_connections);
+                break;
+            }
+        }
+        k_mutex_unlock(&conn_mutex);
+        if (active_connections < CONFIG_BT_MAX_CONN) {
+            startAdvertising();
+        }
     }
 }
 
@@ -69,24 +78,25 @@ void BleManager::onDisconnected(struct bt_conn *conn, uint8_t reason) {
     LOG_INF("Disconnected (reason 0x%02x)", reason);
 
     k_mutex_lock(&conn_mutex, K_FOREVER);
-    // ONLY unref if this is the connection we are actually tracking
-    if (current_conn == conn) {
-        bt_conn_unref(current_conn);
-        current_conn = nullptr;
+    for (int i = 0; i < CONFIG_BT_MAX_CONN; i++) {
+        if (current_conns[i] == conn) {
+            bt_conn_unref(current_conns[i]);
+            current_conns[i] = nullptr;
+            active_connections--;
+            if (active_connections < 0) active_connections = 0;
+            break;
+        }
     }
     k_mutex_unlock(&conn_mutex);
     startAdvertising();
 }
-struct bt_conn* BleManager::get_connection_ref() {
-    struct bt_conn *ref = nullptr;
 
-    // Wait for the lock
+void BleManager::forEachConnection(void (*func)(struct bt_conn *conn, void *ptr), void *user_data) {
     k_mutex_lock(&conn_mutex, K_FOREVER);
-
-    if (current_conn) {
-        ref = bt_conn_ref(current_conn);
+    for (int i = 0; i < CONFIG_BT_MAX_CONN; i++) {
+        if (current_conns[i]) {
+            func(current_conns[i], user_data);
+        }
     }
-
     k_mutex_unlock(&conn_mutex);
-    return ref;
 }

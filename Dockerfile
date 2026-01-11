@@ -147,10 +147,8 @@ ENV ZEPHYR_SDK_VERSION=${ZEPHYR_SDK_VERSION}
 #     bash setup.sh
 
 RUN cd /opt/toolchains && \
-    west sdk install
-
-# REMOVED: The complex, multi-step installation of minimal SDK + toolchains + host tools
-# is now replaced by the single, simpler block above.
+    west sdk install && \
+    west blobs fetch hal_espressif
 
 #-------------------------------------------------------------------------------
 # Optional Settings

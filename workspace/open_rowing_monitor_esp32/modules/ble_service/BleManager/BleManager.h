@@ -17,11 +17,12 @@ public:
 
     static void onConnected(struct bt_conn *conn, uint8_t err);
     static void onDisconnected(struct bt_conn *conn, uint8_t reason);
-    struct bt_conn* get_connection_ref();
+    void forEachConnection(void (*func)(struct bt_conn *conn, void *data), void *user_data);
 private:
     // Track the active connection
-    static struct bt_conn *current_conn;
+    static struct bt_conn *current_conns[CONFIG_BT_MAX_CONN];
     static struct k_mutex conn_mutex;
+    static int active_connections;
 };
 
 #endif // BLE_MANAGER_H

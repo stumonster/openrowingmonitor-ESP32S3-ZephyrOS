@@ -4,7 +4,6 @@
     /* 2. Aliases: Giving C++ friendly names to hardware nodes */
     aliases {
         impulse-sensor = &rower_reed_switch;
-        storage-partition = &storage_partition;
     };
 
     /* 3. GPIO Keys: Virtual device for the Sensor */
@@ -15,38 +14,6 @@
             /* GPIO 17, Pull-Up, Active Low */
             gpios = <&gpio0 17 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
             label = "Flywheel Impulse Sensor";
-        };
-    };
-};
-
-/* 16MB flash */
-&flash0 {
-    reg = <0x0 DT_SIZE_M(16)>;
-    /delete-node/ partitions;
-    partitions {
-        compatible = "fixed-partitions";
-        #address-cells = <1>;
-        #size-cells = <1>;
-
-        /* 0x00000 - 0x10000: Bootloader (64KB) */
-        boot_partition: partition@0 {
-            label = "mcuboot";
-            reg = <0x00000000 0x00010000>;
-            read-only;
-        };
-
-        /* 0x10000 - 0x210000: Application (2MB) */
-        /* You can make this larger if your code grows */
-        slot0_partition: partition@10000 {
-            label = "image-0";
-            reg = <0x00010000 0x00200000>;
-        };
-
-        /* 0x210000 - End: Storage (~13.8MB) */
-        /* This is where LittleFS will live */
-        storage_partition: partition@210000 {
-            label = "storage";
-            reg = <0x00210000 0x00DE0000>;
         };
     };
 };

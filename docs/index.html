@@ -2,72 +2,139 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta
-            name="description"
-            content="A rowing monitor for rowing exercise machines"
-        />
-        <meta name="author" content="Lars Berning" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-        />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <link
-            rel="manifest"
-            href="manifest.json"
-            crossorigin="use-credentials"
-        />
-        <link rel="icon" sizes="192x192" href="icon.png" />
-        <title>Open Rowing Monitor</title>
-
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ESP32 Rowing Monitor</title>
         <style>
-            /* defines the theme of Open Rowing Monitor, edit this if you want other colors.. */
-            html {
-                --theme-background-color: #00091c;
-                --theme-widget-color: #002b57;
-                --theme-button-color: #365080;
-                --theme-font-family: Verdana, "Lucida Sans Unicode", sans-serif;
-                --theme-font-color: #f5f5f5;
-                --theme-warning-color: #ff0000;
-                --theme-border-radius: 3px;
+            :root {
+                --bg-color: #121212;
+                --card-bg: #1e1e1e;
+                --accent-color: #00e676;
+                --text-color: #ffffff;
+                --secondary-text: #b0b0b0;
             }
 
             body {
-                background-color: var(--theme-background-color);
-                color: var(--theme-font-color);
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                background-color: var(--bg-color);
+                color: var(--text-color);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
                 margin: 0;
-                font-size: calc(
-                    16px + (60 - 16) * ((100vw - 300px) / (1920 - 300))
-                );
-                font-family: var(--theme-font-family);
-                user-select: none;
-                overscroll-behavior: contain;
+                padding: 20px;
             }
 
-            @media (orientation: portrait) {
-                body {
-                    font-size: calc(
-                        16px + (60 - 16) * ((100vh - 300px) / (1920 - 300))
-                    );
-                }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+
+            button {
+                background-color: var(--accent-color);
+                color: black;
+                border: none;
+                padding: 15px 30px;
+                font-size: 1.1rem;
+                font-weight: bold;
+                border-radius: 30px;
+                cursor: pointer;
+                transition:
+                    transform 0.2s,
+                    background-color 0.2s;
+            }
+
+            button:hover {
+                transform: scale(1.05);
+                background-color: #00c853;
+            }
+
+            .dashboard {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                width: 100%;
+                max-width: 900px;
+            }
+
+            .card {
+                background-color: var(--card-bg);
+                padding: 25px;
+                border-radius: 15px;
+                text-align: center;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+                border-bottom: 4px solid transparent;
+            }
+
+            .card.active {
+                border-bottom-color: var(--accent-color);
+            }
+
+            .label {
+                color: var(--secondary-text);
+                text-transform: uppercase;
+                font-size: 0.8rem;
+                letter-spacing: 1px;
+                margin-bottom: 10px;
+            }
+
+            .value {
+                font-size: 2.5rem;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+
+            .unit {
+                font-size: 1rem;
+                color: var(--secondary-text);
+            }
+
+            #status {
+                margin-top: 10px;
+                font-size: 0.9rem;
+                color: var(--secondary-text);
             }
         </style>
     </head>
-
     <body>
-        <noscript>You need to enable JavaScript to run this app.</noscript>
-        <web-app></web-app>
-        <script type="importmap">
-            {
-                "imports": {
-                    "lit": "https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js",
-                    "nosleep.js": "https://cdn.jsdelivr.net/npm/nosleep.js@0.12.0/dist/NoSleep.min.js"
-                }
-            }
-        </script>
+        <div class="header">
+            <h1>Rowing Monitor</h1>
+            <button id="connectBtn">CONNECT TO ROWER</button>
+            <div id="status">Disconnected</div>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <div class="label">Instant Power</div>
+                <div class="value" id="instPower">0</div>
+                <div class="unit">Watts</div>
+            </div>
+            <div class="card">
+                <div class="label">Stroke Rate (SPM)</div>
+                <div class="value" id="spm">0</div>
+                <div class="unit">SPM</div>
+            </div>
+            <div class="card">
+                <div class="label">Pace (/500m)</div>
+                <div class="value" id="pace">0:00</div>
+                <div class="unit">MM:SS</div>
+            </div>
+            <div class="card">
+                <div class="label">Distance</div>
+                <div class="value" id="distance">0</div>
+                <div class="unit">Meters</div>
+            </div>
+            <div class="card">
+                <div class="label">Elapsed Time</div>
+                <div class="value" id="time">00:00</div>
+                <div class="unit">MM:SS</div>
+            </div>
+            <div class="card">
+                <div class="label">Strokes</div>
+                <div class="value" id="strokeCount">0</div>
+                <div class="unit">Total</div>
+            </div>
+        </div>
+
         <script type="module" src="./index.js"></script>
     </body>
 </html>
