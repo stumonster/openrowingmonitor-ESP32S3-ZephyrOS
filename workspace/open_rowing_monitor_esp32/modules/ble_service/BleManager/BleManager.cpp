@@ -103,7 +103,7 @@ void BleManager::forEachConnection(void (*func)(struct bt_conn *conn, void *ptr)
             safe_conns[count++] = bt_conn_ref(current_conns[i]);
         }
     }
-    k_mutex_lock(&conn_mutex, K_FOREVER);
+    k_mutex_unlock(&conn_mutex);
 
     for (int i = 0; i < CONFIG_BT_MAX_CONN; i++) {
         if (current_conns[i]) {
