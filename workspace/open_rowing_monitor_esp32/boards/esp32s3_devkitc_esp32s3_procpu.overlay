@@ -12,7 +12,7 @@
         compatible = "gpio-keys";
 
         rower_button: push_button {
-            gpios = <&gpio 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+            gpios = <&gpio 13 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
             label = "Power button";
         };
         rower_reed_switch: reed_switch {

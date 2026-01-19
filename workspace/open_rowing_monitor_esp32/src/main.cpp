@@ -97,7 +97,7 @@ int main(void)
         // ================================================================
         monitor.update(30000);  // Check every 30 seconds
 
-        k_msleep(500);  // Main loop runs at 2Hz
+        k_msleep(250);  // Main loop runs at 2Hz
     }
 
     return 0;
