@@ -10,7 +10,7 @@
 #include "FTMS.h"
 #include "RowerBridge.h"
 #include "SystemMonitor.h"
-#include "PowerManager.h"
+// #include "PowerManager.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -20,7 +20,6 @@ int main(void)
     // 0. Check Wake Cause (ESP32 resets on mode from deep sleep)
     // ================================================================
     esp_sleep_wakeup_cause_t wake_cause = esp_sleep_get_wakeup_cause();
-
     switch (wake_cause) {
         case ESP_SLEEP_WAKEUP_GPIO:
             LOG_INF("=== WOKE FROM DEEP SLEEP (Button Press) ===");
@@ -71,8 +70,8 @@ int main(void)
     // ================================================================
     // 6. POWER MANAGEMENT (NEW)
     // ================================================================
-    PowerManager powerManager;
-    powerManager.init();
+    // PowerManager powerManager;
+    // powerManager.init();
 
     LOG_INF("All systems go. Ready to row.");
 
@@ -93,14 +92,14 @@ int main(void)
             // Just connected
             gpioService.resume();
             engine.startSession();
-            powerManager.notifyBleConnected();  // NEW!
+            // powerManager.notifyBleConnected();  // NEW!
             wasConnected = true;
             LOG_INF("=== SESSION STARTED ===");
         } else if (!isConnected && wasConnected) {
             // Just disconnected
             gpioService.pause();
             engine.endSession();
-            powerManager.notifyBleDisconnected(true);  // NEW!
+            // powerManager.notifyBleDisconnected(true);  // NEW!
             wasConnected = false;
             LOG_INF("=== SESSION ENDED ===");
         }
@@ -116,9 +115,11 @@ int main(void)
             strokeCount = data.strokeCount;
 
             // Notify power manager of activity
+            /*
             if (strokeCount > lastStrokeCount) {
                 powerManager.notifyActivity();  // NEW!
             }
+            */
 
             // Log progress every 10 strokes
             if (strokeCount > 0 && strokeCount % 10 == 0 && strokeCount != lastStrokeCount) {
@@ -136,7 +137,7 @@ int main(void)
         // ============================================================
         // Power Management Update (NEW)
         // ============================================================
-        powerManager.update();
+        // powerManager.update();
 
         k_msleep(250);  // Main loop runs at 4Hz
     }
