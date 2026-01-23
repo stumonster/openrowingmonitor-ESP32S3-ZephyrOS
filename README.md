@@ -51,6 +51,11 @@ This project uses a modular Zephyr application structure:
     └── utilities/          # Debugging purposes
 ```
 
+## 📂 Github Pages Website
+Instead of putting the load onto the MCU for hosting the website, I instead opted for a static website that will be hosted in github. This will make the device more like a typical Fitness Machine Computer and not a full computer. You can access this website with this [link](https://jannuel-dizon.github.io/openrowingmonitor-ESP32S3-ZephyrOS/)
+
+The current state of the website only receives data from the MCU and displays it you. It cannot record or control the MCU yet, but I do plan to implement it in the future once I am confident that the firmware has no more bugs.
+
 ## 📦 Development Environment (Docker)
 
 This project uses a containerized build system to ensure a consistent environment across different machines. You do not need to install the Zephyr SDK locally.
