@@ -8,48 +8,47 @@ This project is a complete C++ port of the excellent [Open Rowing Monitor](https
 The primary goal of this project is to implement a professional-grade embedded system that replicates the complex physics engine of a rowing monitor within the constraints of a microcontroller.
 
 It serves as a reference implementation for:
-* **Zephyr RTOS** on ESP32 (Threads, Timers, DeviceTree, ISRs).
+* **Zephyr RTOS** on ESP32 (Threads, Timers, DeviceTree, ISRs, Bluetooth).
 * **Real-time Physics** calculations (ported from JavaScript to C++).
-* **Bluetooth LE** (FTMS Profile) and **Wi-Fi** networking.
+* **Bluetooth LE** (FTMS Profile).
 * **Dockerized Development** workflows for embedded systems.
 
 ## 🚀 Features
 * **🚣 Physics Engine:** Calculates Drive/Recovery phases, Power (Watts), Distance, and Drag Factor based on flywheel impulse timing.
-* **📱 Web Dashboard:** Hosts a local web server on the ESP32 to display real-time metrics (Speed, SPM, Force Curve) on your phone.
-* **🔵 Bluetooth FTMS:** Acts as a standard Fitness Machine Service, compatible with apps like **Zwift, Kinomap, and EXR**.
-* **💾 Data Logging:** Records workout sessions to an SD Card in `.tcx` format.
-* **☁️ Strava Integration:** Uploads completed `.tcx` files directly to Strava via Wi-Fi.
+* **🔵 Bluetooth FTMS:** Acts as a standard Fitness Machine Service, compatible with apps like **Zwift, Kinomap, and EXR**. If you do not have access to those software you can use this static website I built to connect to your computer [Website](https://jannuel-dizon.github.io/openrowingmonitor-ESP32S3-ZephyrOS/).
+* **📱 Web Dashboard:** Interfaces with Web Bluetooth to display real-time metrics (Power, Speed, SPM).
 
 ## 🛠 Hardware Requirements
 * **Microcontroller:** ESP32-S3 (DevKitC-1 or similar).
 * **Sensor:** Reed Switch or Optical Sensor (connected to GPIO).
 * **Magnet:** Neodymium magnet attached to the rowing machine flywheel.
-* **Storage:** MicroSD Card Module (SPI interface).
+* **Bluetooth:** Bluetooth module (If MCU does not have bluetooth built in).
 
 | Component | ESP32-S3 Pin (Default) | Notes |
 | :--- | :--- | :--- |
 | **Reed Switch** | `GPIO 17` | Input Pull-up |
-| **SD Card CS** | `GPIO 5` | SPI Chip Select |
-| **SD Card MOSI** | `GPIO 11` | |
-| **SD Card MISO** | `GPIO 13` | |
-| **SD Card SCK** | `GPIO 12` | |
 
-*(Note: Pinout can be modified in `app.overlay`)*
+
+*(Note: Pinout can be modified in `app.overlay` or `boards/*.overlay`)*
 
 ## 📂 Software Architecture
 This project uses a modular Zephyr application structure:
 
 ```text
-├── app.overlay          # DeviceTree definitions (Sensor/SD Card pins)
-├── prj.conf             # Zephyr Kconfig (Enables BLE, WiFi, C++, FPU)
+├── prj.conf                # Project wide configuration (Rowing Machine Settings, Bluetooth, C++, FPU, etc)
+└── boards/
+│   ├── *.overlay           # Board specific DeviceTree definition (Sensors, Bluetooth module, etc) 
+│   ├── *.conf              # Board specific configuration
 └── src/
-    ├── main.cpp         # Main thread & Initialization
-    ├── engine/          # The Physics Core (Ported logic)
-    │   ├── RowingEngine.cpp
+│   ├── main.cpp            # Main thread & Initialization
+└── modules/
+    ├── ble_services/       # Bluetooth FTM Service Implementation
+    ├── hardware_driver/    # High-precision Interrupt Service Routines (ISRs)
+    ├── physics_engine/     # The Physics Core (Ported logic)
+    │   ├── RowingEngine/   # Outputs Rowing metrics
     │   └── ...
-    ├── ble/             # Bluetooth FTMS Service Implementation
-    ├── gpio/            # High-precision Interrupt Service Routines (ISRs)
-    └── web/             # Embedded Web Server & Assets
+    ├── rowing_core/        # Header files the stores Rowing Machine Setting and struct for holding data
+    └── utilities/          # Debugging purposes
 ```
 
 ## 📦 Development Environment (Docker)
@@ -76,7 +75,7 @@ Build and Run the Container:
 
 Build the Firmware (inside the container):
 ```Bash
-west build -b esp32s3_devkitm -p
+west build -b esp32s3_devkitc/esp32s3/procpu -p always
 ```
 
 Flash to Device: Since the container has access to USB (via --device=/dev/ttyUSB0 in run.sh), you can flash directly:
