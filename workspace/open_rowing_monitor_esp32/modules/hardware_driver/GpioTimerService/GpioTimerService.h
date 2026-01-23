@@ -28,7 +28,7 @@ private:
 
     // IPC: Message Queue
     struct k_msgq impulseQueue;
-    char __aligned(8) impulseQueueBuffer[IMPULSE_QUEUE_SIZE * sizeof(double)];
+    char __aligned(8) impulseQueueBuffer[IMPULSE_QUEUE_SIZE * sizeof(uint32_t)];
 
     // THREAD DATA
     // We keep the struct here, but the STACK will be defined in the .cpp file

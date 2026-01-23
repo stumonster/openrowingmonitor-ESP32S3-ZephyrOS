@@ -147,9 +147,9 @@ void RowingEngine::startRecoveryPhase(double dt) {
     // 1. AUTO-START LOGIC
     // We check this BEFORE updating averages
     if (!currentData.sessionActive && instSpeed > 0.1) {
-        resetSessionInternal();
-        // resetSessionInternal should set currentData.sessionActive = true
-        // and currentData.distance = 0
+        // resetSessionInternal();
+        currentData.sessionStartTime = k_uptime_get_32();
+        currentData.sessionActive = true;
     }
 
     // 2. ACCUMULATE SESSION DATA
@@ -184,7 +184,7 @@ void RowingEngine::updateRecoveryPhase(double dt) {
     double currentVel = angularDisplacementPerImpulse / dt;
     double alpha = (currentVel - previousAngularVelocity) / dt;
 
-    // [NEW] Dynamic Drag Factor Logic
+    // Dynamic Drag Factor Logic
     if (settings.autoAdjustDragFactor) {
         // Only calculate if flywheel is actually slowing down (alpha < 0)
         // and moving fast enough to avoid low-speed noise (e.g., > 10 rad/s)
@@ -232,13 +232,11 @@ double RowingEngine::calculateCyclePower(double driveAngle, double recoveryAngle
 }
 
 void RowingEngine::resetSessionInternal() {
-    currentData.sessionActive = true;
-    currentData.sessionStartTime = currentData.totalTime;
-    currentData.totalSpmSum = 0;
-    currentData.totalSpeedSum = 0;
-    currentData.totalPowerSum = 0;
-    currentData.strokeSampleCount = 0;
-    currentData.distance = 0;
+    // currentData.sessionActive = true;
+    currentData = RowingData();
+    currentData.dragFactor = settings.dragFactor;
+    currentData.state = RowingState::RECOVERY;
+    dragFactorAverager.reset(settings.dragFactor);
 }
 
 void RowingEngine::startSession() {
@@ -252,7 +250,6 @@ void RowingEngine::startSession() {
 
 void RowingEngine::endSession() {
     k_mutex_lock(&dataLock, K_FOREVER);
-    currentData.sessionActive = false;
     resetSessionInternal();
     LOG_INF("Session ended.");
     k_mutex_unlock(&dataLock);
@@ -271,7 +268,8 @@ void RowingEngine::printData() {
 
 void RowingEngine::logDragFactor() {
     k_mutex_lock(&dataLock, K_FOREVER);
-    LOG_INF("Drag factor: %f", currentData.dragFactor);
+    // LOG_INF("Drag factor: %f", currentData.dragFactor);
+    LOG_INF("Session Active: %d", currentData.sessionActive);
     k_mutex_unlock(&dataLock);
 }
 

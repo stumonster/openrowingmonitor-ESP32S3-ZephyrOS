@@ -39,10 +39,12 @@ int main(void)
     bridge.init();
 
     // 5. System Monitoring
+    /*
     SystemMonitor monitor;
     monitor.init();
     monitor.registerThread(k_current_get(), "main_thread");
     monitor.registerThread(gpioService.getPhysicsThread(), "physics_thread");
+    */
 
     LOG_INF("All systems go. Ready to row.");
 
@@ -50,13 +52,8 @@ int main(void)
     // 7. Main Loop
     // ================================================================
     bool wasConnected = false;
-    uint32_t strokeCount = 0;
-    uint32_t lastStrokeCount = 0;
-    engine.startSession();
-
     while (1) {
-        // bool isConnected = bleManager.isConnected();
-        /*
+        bool isConnected = bleManager.isConnected();
         // ============================================================
         // Handle BLE Connection State Changes
         // ============================================================
@@ -79,25 +76,13 @@ int main(void)
         // ============================================================
         if (isConnected) {
             bridge.update();
-
-            // Track strokes to detect activity
-            RowingData data = engine.getData();
-            strokeCount = data.strokeCount;
-
-            // Log progress every 10 strokes
-            if (strokeCount > 0 && strokeCount % 10 == 0 && strokeCount != lastStrokeCount) {
-                LOG_INF("Progress: %d strokes, %.1f watts, %.0f meters",
-                        strokeCount, data.instPower, data.distance);
-                lastStrokeCount = strokeCount;
-            }
         }
 
         // ============================================================
         // System Monitoring (every 30 seconds)
         // ============================================================
-        monitor.update(30000);
-        */
-        bridge.update();
+        // monitor.update(30000);
+        // bridge.update();
 
         k_msleep(250);  // Main loop runs at 4Hz
     }

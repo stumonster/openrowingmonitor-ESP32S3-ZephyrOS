@@ -126,7 +126,7 @@ void FTMS::notifyRowingData(struct bt_conn *conn, const RowingData& data) {
 
     // [9] Elapsed Time (UINT16 - Seconds)
     // Present because Bit 11 is 1
-    uint16_t elapsedTime = (uint16_t)(data.totalTime - data.sessionStartTime);
+    uint16_t elapsedTime =  !data.sessionActive ? 0 : (uint16_t)((double)(k_uptime_get_32() - data.sessionStartTime)/1000.00);
     sys_put_le16(elapsedTime, &buffer[cursor]);
     cursor += 2;
 

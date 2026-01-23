@@ -23,7 +23,7 @@ GpioTimerService::GpioTimerService(RowingEngine& eng)
     // Set the global instance to 'this'
     instance = this;
 
-    k_msgq_init(&impulseQueue, impulseQueueBuffer, sizeof(double), IMPULSE_QUEUE_SIZE);
+    k_msgq_init(&impulseQueue, impulseQueueBuffer, sizeof(uint32_t), IMPULSE_QUEUE_SIZE);
 
     k_thread_create(&physicsThreadData,
                     physicsThreadStack,
@@ -60,7 +60,7 @@ void GpioTimerService::physicsThreadEntryPoint(void* p1, void* p2, void* p3) {
 }
 
 void GpioTimerService::physicsLoop() {
-    double dt;
+    uint32_t deltaCycles;
     LOG_INF("Physics loop thread started");
 
     // Monitoring Variables
@@ -74,7 +74,7 @@ void GpioTimerService::physicsLoop() {
     #endif
 
     while (true) {
-        if (k_msgq_get(&impulseQueue, &dt, K_FOREVER) == 0) {
+        if (k_msgq_get(&impulseQueue, &deltaCycles, K_FOREVER) == 0) {
             impulseCount++;
 
             #ifdef CONFIG_ENABLE_PHYSICS_PROFILING
@@ -82,6 +82,7 @@ void GpioTimerService::physicsLoop() {
             #endif
 
             // === THE ACTUAL WORK ===
+            double dt = (double)deltaCycles / (double)sys_clock_hw_cycles_per_sec();
             engine.handleRotationImpulse(dt);
 
             #ifdef CONFIG_ENABLE_PHYSICS_PROFILING
@@ -156,9 +157,8 @@ void GpioTimerService::handleInterrupt() {
     uint32_t deltaCycles = currentCycles - lastCycleTime;
     lastCycleTime = currentCycles;
 
-    double dt = (double)deltaCycles / (double)sys_clock_hw_cycles_per_sec();
 
-    k_msgq_put(&impulseQueue, &dt, K_NO_WAIT);
+    k_msgq_put(&impulseQueue, &deltaCycles, K_NO_WAIT);
 }
 
 void GpioTimerService::pause() {

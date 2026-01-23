@@ -43,6 +43,6 @@ struct RowingData {
 
     // Training Session State
     bool sessionActive = false;
-    double sessionStartTime = 0.0;
+    uint32_t sessionStartTime = 0;
 
 };
