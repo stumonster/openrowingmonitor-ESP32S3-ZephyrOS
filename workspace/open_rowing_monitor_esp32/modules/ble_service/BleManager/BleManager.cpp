@@ -154,7 +154,8 @@ void BleManager::onDisconnected(struct bt_conn *conn, uint8_t reason) {
     k_work_cancel_delayable(&adv_restart_work);
 
     // Restart advertising immediately on disconnect (safe to do directly)
-    startAdvertising();
+    // startAdvertising();
+    k_work_schedule(&adv_restart_work, K_MSEC(200));
 }
 
 void BleManager::advRestartHandler(struct k_work *work) {
