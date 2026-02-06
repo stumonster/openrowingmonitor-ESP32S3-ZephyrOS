@@ -5,4 +5,4 @@ docker build \
     -f Dockerfile \
     .
 
-ssh-keygen -f '/home/jannnuel-dizon/.ssh/known_hosts' -R '[localhost]:2223'
+ssh-keygen -f "${HOME}/.ssh/known_hosts" -R '[localhost]:2223'
