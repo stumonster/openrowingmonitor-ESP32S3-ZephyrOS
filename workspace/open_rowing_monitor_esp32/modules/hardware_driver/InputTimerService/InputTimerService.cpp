@@ -8,12 +8,26 @@ LOG_MODULE_REGISTER(InputTimerService, LOG_LEVEL_INF);
 #define CONFIG_INPUT_PHYSICS_THREAD_STACK_SIZE 4096  // Safe default
 #endif
 
-K_THREAD_STACK_DEFINE(physicsThreadStack, CONFIG_INPUT_PHYSICS_THREAD_STACK_SIZE);
+static K_THREAD_STACK_DEFINE(physicsThreadStack, CONFIG_INPUT_PHYSICS_THREAD_STACK_SIZE);
 
 #define PHYSICS_PRIORITY 5
 
 // 1. GLOBAL STATIC POINTER (Singleton-ish access for ISR)
 static InputTimerService* instance = nullptr;
+
+// 2. Define the static bridge function
+static void input_bridge_callback(struct input_event *evt, void *user_data) {
+    if (instance) {
+        instance->handleInputEvent(evt);
+    }
+}
+
+INPUT_CALLBACK_DEFINE(NULL,
+                      input_bridge_callback,
+                      nullptr);
+// INPUT_CALLBACK_DEFINE(DEVICE_DT_GET(DT_ALIAS(impulse_sensor)),
+//                       input_bridge_callback,
+//                       nullptr);
 
 InputTimerService::InputTimerService(RowingEngine& eng)
     : m_engine(eng),
@@ -36,16 +50,6 @@ InputTimerService::InputTimerService(RowingEngine& eng)
       }
 
 int InputTimerService::init() {
-    // Register callback for input events
-    int ret = input_callback_set(DEVICE_DT_GET(DT_ALIAS(impulse_sensor)),
-                                  inputCallback,
-                                  this);
-
-    if (ret < 0) {
-        LOG_ERR("Failed to register input callback: %d", ret);
-        return ret;
-    }
-
     LOG_INF("InputTimerService initialized");
     return 0;
 }
@@ -66,7 +70,7 @@ void InputTimerService::physicsThreadEntryPoint(void* p1, void* p2, void* p3) {
     self->physicsLoop();
 }
 
-void GpioTimerService::physicsLoop() {
+void InputTimerService::physicsLoop() {
     uint32_t deltaCycles;
     LOG_INF("Physics loop thread started");
 
@@ -74,14 +78,12 @@ void GpioTimerService::physicsLoop() {
         if (k_msgq_get(&impulseQueue, &deltaCycles, K_FOREVER) == 0) {
 
             double dt = (double)deltaCycles / (double)sys_clock_hw_cycles_per_sec();
-            engine.handleRotationImpulse(dt);
+            m_engine.handleRotationImpulse(dt);
         }
     }
 }
 
-void InputTimerService::inputCallback(struct input_event *evt, void *user_data) {
-    InputTimerService* self = static_cast<InputTimerService*>(user_data);
-
+void InputTimerService::handleInputEvent(struct input_event *evt) {
     // We only care about key press events (rising edge)
     // For a reed switch, this is when the magnet passes
     if (evt->code != INPUT_KEY_0 || evt->type != INPUT_EV_KEY) {
@@ -95,22 +97,22 @@ void InputTimerService::inputCallback(struct input_event *evt, void *user_data) 
     }
 
     // If paused, ignore
-    if (self->isPaused) {
+    if (isPaused) {
         return;
     }
 
     // Get current time
     uint32_t currentCycles = k_cycle_get_32();
 
-    if (self->isFirstPulse) {
-        self->lastCycleTime = currentCycles;
-        self->isFirstPulse = false;
+    if (isFirstPulse) {
+        lastCycleTime = currentCycles;
+        isFirstPulse = false;
         return;
     }
 
     // Calculate dt
-    uint32_t deltaCycles = currentCycles - self->lastCycleTime;
-    self->lastCycleTime = currentCycles;
+    uint32_t deltaCycles = currentCycles - lastCycleTime;
+    lastCycleTime = currentCycles;
 
     k_msgq_put(&impulseQueue, &deltaCycles, K_NO_WAIT);
 }

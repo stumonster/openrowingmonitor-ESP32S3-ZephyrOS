@@ -23,6 +23,7 @@ public:
     void pause();
     void resume();
 
+    void handleInputEvent(struct input_event *evt);
 private:
     RowingEngine& m_engine;
 
@@ -41,5 +42,4 @@ private:
 
     // Input callback
     static void physicsThreadEntryPoint(void *p1, void *p2, void *p3);
-    static void inputCallback(struct input_event *evt, void *user_data);
 };
