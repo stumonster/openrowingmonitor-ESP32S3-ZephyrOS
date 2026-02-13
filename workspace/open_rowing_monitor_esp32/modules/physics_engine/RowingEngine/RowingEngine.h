@@ -8,7 +8,7 @@
 
 class RowingEngine {
 private:
-    RowingSettings settings;
+    RowingSettings &settings;
     MovingFlankDetector flankDetector;
     MovingAverager dragFactorAverager;
 
@@ -41,7 +41,7 @@ private:
     void updateRecoveryPhase(double dt);
     void resetSessionInternal();
 public:
-    explicit RowingEngine(RowingSettings settings);
+    explicit RowingEngine(RowingSettings &rs);
     void startSession();
     void endSession();
 

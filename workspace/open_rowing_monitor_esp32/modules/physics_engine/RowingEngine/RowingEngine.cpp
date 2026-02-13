@@ -5,7 +5,7 @@
 LOG_MODULE_REGISTER(RowingEngine, LOG_LEVEL_INF);
 static RowingState lastLoggedState = RowingState::RECOVERY;
 
-RowingEngine::RowingEngine(RowingSettings rs)
+RowingEngine::RowingEngine(RowingSettings &rs)
     : settings(rs),
       flankDetector(rs),
       dragFactorAverager(rs.dampingConstantSmoothing, rs.dragFactor) {

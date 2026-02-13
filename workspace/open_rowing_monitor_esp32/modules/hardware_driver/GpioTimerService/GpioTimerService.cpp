@@ -14,15 +14,16 @@ K_THREAD_STACK_DEFINE(physicsThreadStack, CONFIG_GPIO_PHYSICS_THREAD_STACK_SIZE)
 // 1. GLOBAL STATIC POINTER (Singleton-ish access for ISR)
 static GpioTimerService* instance = nullptr;
 
-GpioTimerService::GpioTimerService(RowingEngine& eng)
-    : engine(eng),
-      sensorSpec(GPIO_DT_SPEC_GET(DT_ALIAS(impulse_sensor), gpios)),
-      lastCycleTime(0),
-      isFirstPulse(true) {
+GpioTimerService::GpioTimerService(RowingEngine &eng, const RowingSettings &rs)
+    :   settings(rs),
+        engine(eng),
+        sensorSpec(GPIO_DT_SPEC_GET(DT_ALIAS(impulse_sensor), gpios)),
+        lastCycleTime(0),
+        isFirstPulse(true) {
 
     // Set the global instance to 'this'
     instance = this;
-
+    minCycles = (uint32_t)(settings.minimumTimeBetweenImpulses * (double)sys_clock_hw_cycles_per_sec());
     k_msgq_init(&impulseQueue, impulseQueueBuffer, sizeof(uint32_t), IMPULSE_QUEUE_SIZE);
 
     k_thread_create(&physicsThreadData,
@@ -153,6 +154,7 @@ void GpioTimerService::handleInterrupt() {
     }
 
     uint32_t deltaCycles = currentCycles - lastCycleTime;
+    if(deltaCycles < minCycles) return;
     lastCycleTime = currentCycles;
 
 

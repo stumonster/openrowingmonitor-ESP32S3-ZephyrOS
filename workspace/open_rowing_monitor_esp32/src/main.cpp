@@ -70,7 +70,7 @@ int main(void)
     RowingEngine engine(settings);
 
     // 2. Hardware Timer Service
-    GpioTimerService gpioService(engine);
+    GpioTimerService gpioService(engine, settings);
     if (gpioService.init() != 0) {
         LOG_ERR("Failed to initialize GPIO. Check Devicetree alias 'impulse-sensor'");
         return 0;
