@@ -2,13 +2,14 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
+#include "RowingSettings.h"
 #include "RowingEngine.h"
 
 #define IMPULSE_QUEUE_SIZE (CONFIG_GPIO_IMPULSE_QUEUE_SIZE * CONFIG_ORM_IMPULSES_PER_REV)
 
 class GpioTimerService {
 public:
-    explicit GpioTimerService(RowingEngine& engine);
+    explicit GpioTimerService(RowingEngine &eng, const RowingSettings &rs);
     int init();
     void handleInterrupt();
     void pause();
@@ -16,8 +17,10 @@ public:
     struct k_thread* getPhysicsThread();
 
 private:
-    RowingEngine& engine;
+    const RowingSettings &settings;
+    RowingEngine &engine;
 
+    uint32_t minCycles;
     // GPIO structs
     struct gpio_dt_spec sensorSpec;
     struct gpio_callback pinCbData;
